@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Default (light) tokens */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 190 100% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 190 100% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 190 100% 40%;
+
+    --radius: 0.5rem;
+
+    /* Custom IA Atende Mais tokens - Light */
+    --navy-deep: 215 40% 96%;
+    --navy-medium: 215 30% 92%;
+    --cyan-bright: 190 100% 40%;
+    --cyan-glow: 190 100% 45%;
+
+    /* Gradients - Light */
+    --gradient-primary: linear-gradient(135deg, hsl(215, 40%, 96%), hsl(215, 30%, 92%));
+    --gradient-accent: linear-gradient(90deg, hsl(190, 100%, 40%), hsl(190, 100%, 45%));
+
+    /* Effects - Light */
+    --shadow-glow: 0 0 30px hsl(190 100% 40% / 0.2);
+    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.1);
+  }
+
+  .dark {
+    /* Dark tokens */
+    --background: 210 100% 4%;
+    --foreground: 210 20% 98%;
+
+    --card: 215 50% 8%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 215 50% 8%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 190 100% 50%;
+    --primary-foreground: 210 100% 4%;
+
+    --secondary: 215 40% 12%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 215 40% 15%;
+    --muted-foreground: 210 20% 70%;
+
+    --accent: 190 100% 50%;
+    --accent-foreground: 210 100% 4%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 215 40% 18%;
+    --input: 215 40% 18%;
+    --ring: 190 100% 50%;
+
+    /* Custom IA Atende Mais tokens */
+    --navy-deep: 215 85% 6%;
+    --navy-medium: 215 60% 10%;
+    --cyan-bright: 190 100% 50%;
+    --cyan-glow: 190 100% 65%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(215, 85%, 6%), hsl(215, 60%, 10%));
+    --gradient-accent: linear-gradient(90deg, hsl(190, 100%, 50%), hsl(190, 100%, 65%));
+
+    /* Effects */
+    --shadow-glow: 0 0 30px hsl(190 100% 50% / 0.3);
+    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
