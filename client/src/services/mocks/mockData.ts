@@ -54,6 +54,24 @@ export const mockOnboardings: OnboardingData[] = [
       telefone: '(11) 98765-1234',
       email: 'financeiro@empresa.com',
     },
+    communicationAndChannel: {
+      numeroWhatsappOficial: '(11) 99999-0000',
+      templatesMensagem: 'Mensagem de boas-vindas e confirmação de pedido.',
+      metaBusinessSchedule: {
+        data: new Date('2024-01-22T12:00:00').toISOString(),
+        horario: '10:00',
+      },
+    },
+    intelligentAgent: {
+      nomeIdentidadeAgente: 'Assistente IA Atende Mais',
+      baseConhecimento: 'Base com FAQs gerais e procedimentos internos.',
+      jornadaConversacional: 'Saudação → Qualificação → Resolução → Encerramento.',
+    },
+    integrationsAndSettings: {
+      crm: 'HubSpot',
+      relatoriosDashboards: 'Relatório semanal com volume de tickets e SLA.',
+      outrasIntegracoes: 'Google Agenda',
+    },
     documentos: [],
     status: 'em_analise',
     dataCriacao: new Date('2024-01-15'),

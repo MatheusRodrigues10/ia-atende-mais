@@ -118,6 +118,28 @@ export const getOnboardingByUserId = async (
       telefone: '',
       email: '',
     },
+    communicationAndChannel: {
+      numeroWhatsappOficial: o.communicationAndChannel?.numeroWhatsappOficial || '',
+      templatesMensagem: o.communicationAndChannel?.templatesMensagem || '',
+      metaBusinessSchedule: o.communicationAndChannel?.metaBusinessSchedule
+        ? {
+            data: o.communicationAndChannel.metaBusinessSchedule.data
+              ? new Date(o.communicationAndChannel.metaBusinessSchedule.data).toISOString()
+              : undefined,
+            horario: o.communicationAndChannel.metaBusinessSchedule.horario || '',
+          }
+        : null,
+    },
+    intelligentAgent: {
+      nomeIdentidadeAgente: o.intelligentAgent?.nomeIdentidadeAgente || '',
+      baseConhecimento: o.intelligentAgent?.baseConhecimento || '',
+      jornadaConversacional: o.intelligentAgent?.jornadaConversacional || '',
+    },
+    integrationsAndSettings: {
+      crm: o.integrationsAndSettings?.crm || '',
+      relatoriosDashboards: o.integrationsAndSettings?.relatoriosDashboards || '',
+      outrasIntegracoes: o.integrationsAndSettings?.outrasIntegracoes || '',
+    },
     documentos: o.documentos || [],
     status: normalizeStatus(o.status),
     dataCriacao: o.createdAt ? new Date(o.createdAt) : new Date(),
@@ -154,6 +176,28 @@ export const getAllOnboardings = async (): Promise<OnboardingData[]> => {
     representantesLegais: o.representantesLegais || [],
     contatoOperacional: o.contatoOperacional || { nome: '', cargo: '', telefone: '', email: '' },
     contatoFinanceiro: o.contatoFinanceiro || { nome: '', cargo: '', telefone: '', email: '' },
+    communicationAndChannel: {
+      numeroWhatsappOficial: o.communicationAndChannel?.numeroWhatsappOficial || '',
+      templatesMensagem: o.communicationAndChannel?.templatesMensagem || '',
+      metaBusinessSchedule: o.communicationAndChannel?.metaBusinessSchedule
+        ? {
+            data: o.communicationAndChannel.metaBusinessSchedule.data
+              ? new Date(o.communicationAndChannel.metaBusinessSchedule.data).toISOString()
+              : undefined,
+            horario: o.communicationAndChannel.metaBusinessSchedule.horario || '',
+          }
+        : null,
+    },
+    intelligentAgent: {
+      nomeIdentidadeAgente: o.intelligentAgent?.nomeIdentidadeAgente || '',
+      baseConhecimento: o.intelligentAgent?.baseConhecimento || '',
+      jornadaConversacional: o.intelligentAgent?.jornadaConversacional || '',
+    },
+    integrationsAndSettings: {
+      crm: o.integrationsAndSettings?.crm || '',
+      relatoriosDashboards: o.integrationsAndSettings?.relatoriosDashboards || '',
+      outrasIntegracoes: o.integrationsAndSettings?.outrasIntegracoes || '',
+    },
     documentos: o.documentos || [],
     status: normalizeStatus(o.status),
     criadoEm: o.criadoEm ? new Date(o.criadoEm) : undefined,

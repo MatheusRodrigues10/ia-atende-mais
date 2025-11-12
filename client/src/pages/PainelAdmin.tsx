@@ -5,14 +5,19 @@ import { getCurrentUser } from '@/services/authService';
 import { deleteOnboarding, getAllOnboardings } from '@/services/onboardingService';
 import { OnboardingData } from '@/types/onboarding';
 import { Eye, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { scheduleService } from '@/services/scheduleService';
+import { ScheduleEntry } from '@/types/schedule';
+
+const HORARIOS_VALIDOS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
 const PainelAdmin = () => {
   const navigate = useNavigate();
   const user = getCurrentUser();
   const [onboardings, setOnboardings] = useState<OnboardingData[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOnboarding, setSelectedOnboarding] = useState<OnboardingData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -26,6 +31,14 @@ const PainelAdmin = () => {
 
     loadOnboardings();
   }, [user, navigate]);
+
+  useEffect(() => {
+    setSchedules(scheduleService.listar());
+    const unsubscribe = scheduleService.subscribe((entries) => setSchedules(entries));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const loadOnboardings = async () => {
     try {
@@ -62,6 +75,50 @@ const PainelAdmin = () => {
     setSelectedOnboarding(onboarding);
     setOnboardingToDelete(onboarding.id);
     setDialogOpen(true);
+  };
+
+  const schedulesPorData = useMemo(() => {
+    const agrupados = new Map<string, ScheduleEntry[]>();
+
+    schedules.forEach((item) => {
+      if (!agrupados.has(item.data)) {
+        agrupados.set(item.data, []);
+      }
+      agrupados.get(item.data)!.push(item);
+    });
+
+    const datasOrdenadas = Array.from(agrupados.keys()).sort();
+
+    return datasOrdenadas.map((dateKey) => {
+      const ocupados = (agrupados.get(dateKey) || []).sort((a, b) =>
+        a.horario.localeCompare(b.horario)
+      );
+
+      const itens = HORARIOS_VALIDOS.map((horario) => {
+        const reservado = ocupados.find((item) => item.horario === horario);
+        if (reservado) {
+          return { horario, status: 'ocupado' as const, clienteNome: reservado.clienteNome };
+        }
+        return { horario, status: 'disponivel' as const };
+      });
+
+      return { dateKey, itens };
+    });
+  }, [schedules]);
+
+  const formatScheduleDateLabel = (dateKey: string) => {
+    try {
+      const date = new Date(`${dateKey}T00:00:00`);
+      const label = date.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      return label.charAt(0).toUpperCase() + label.slice(1);
+    } catch {
+      return dateKey;
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -213,6 +270,49 @@ const PainelAdmin = () => {
             </div>
           </div>
         )}
+
+        <div className="mt-12">
+          <h3 className="text-2xl font-semibold text-foreground mb-4">Agendamentos</h3>
+          {schedulesPorData.length === 0 ? (
+            <div className="bg-card p-8 rounded-xl border border-border shadow-card text-center">
+              <p className="text-muted-foreground">Nenhum agendamento registrado até o momento.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {schedulesPorData.map(({ dateKey, itens }) => (
+                <div
+                  key={dateKey}
+                  className="bg-card rounded-xl border border-border shadow-card overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-border bg-secondary/50">
+                    <p className="text-sm font-semibold text-foreground capitalize">
+                      {formatScheduleDateLabel(dateKey)}
+                    </p>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {itens.map((item) => (
+                      <div
+                        key={`${dateKey}-${item.horario}`}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-1"
+                      >
+                        <span className="text-sm font-medium text-foreground">{item.horario}</span>
+                        <span
+                          className={`text-sm ${
+                            item.status === 'ocupado' ? 'text-muted-foreground' : 'text-green-500'
+                          }`}
+                        >
+                          {item.status === 'ocupado'
+                            ? item.clienteNome || 'Cliente não identificado'
+                            : 'Disponível'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <OnboardingViewDialog
           onboarding={selectedOnboarding}

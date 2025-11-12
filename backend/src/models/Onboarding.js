@@ -15,7 +15,25 @@ const DocumentoSchema = new mongoose.Schema({
   },
   tipoDocumento: {
     type: String,
-    enum: ['contrato_social', 'rg_cpf', 'comprovante_endereco', 'logotipo'],
+    enum: [
+      'contrato_social',
+      'rg_cpf',
+      'comprovante_endereco',
+      'logotipo',
+      'numero_whatsapp_oficial',
+      'configuracao_meta_business',
+      'templates_mensagem',
+      'nome_identidade_agente',
+      'perfil_visual',
+      'base_conhecimento',
+      'jornada_conversacional',
+      'crm',
+      'relatorios_dashboards',
+      'outras_integracoes',
+      'communication_and_channel',
+      'intelligent_agent',
+      'integrations_and_settings'
+    ],
     required: false
   },
   uploadedAt: {
@@ -74,6 +92,27 @@ const OnboardingSchema = new mongoose.Schema({
     cargo: String,
     email: String,
     telefone: String
+  },
+
+  communicationAndChannel: {
+    numeroWhatsappOficial: { type: String },
+    metaBusinessSchedule: {
+      data: { type: Date },
+      horario: { type: String }
+    },
+    templatesMensagem: { type: String }
+  },
+
+  intelligentAgent: {
+    nomeIdentidadeAgente: { type: String },
+    baseConhecimento: { type: String },
+    jornadaConversacional: { type: String }
+  },
+
+  integrationsAndSettings: {
+    crm: { type: String },
+    relatoriosDashboards: { type: String },
+    outrasIntegracoes: { type: String }
   },
 
   // Documentos armazenados no GridFS

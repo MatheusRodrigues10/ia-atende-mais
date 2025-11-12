@@ -1,15 +1,84 @@
 import { FileUpload } from '@/components/FileUpload';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { MaskedInput } from '@/components/ui/masked-input';
+import { Textarea } from '@/components/ui/textarea';
 import { getCurrentUser } from '@/services/authService';
 import { createOnboarding, deleteOnboardingFile, getOnboardingByUserId, updateOnboarding, uploadOnboardingFile } from '@/services/onboardingService';
-import { RepresentanteLegal } from '@/types/onboarding';
+import { scheduleService } from '@/services/scheduleService';
+import {
+  CommunicationAndChannel,
+  DocumentoTipo,
+  DocumentoUpload,
+  IntelligentAgent,
+  IntegrationsAndSettings,
+  RepresentanteLegal,
+} from '@/types/onboarding';
+import { ScheduleEntry } from '@/types/schedule';
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+const HORARIOS_VALIDOS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
+const formatDateKey = (date?: Date) => {
+  if (!date) return '';
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy.toISOString().split('T')[0] || '';
+};
+
+const parseDateKey = (key?: string) => {
+  if (!key) return undefined;
+  const [year, month, day] = key.split('-').map(Number);
+  if (!year || !month || !day) return undefined;
+  const date = new Date(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const toIsoDateMidday = (date: Date) => {
+  const copy = new Date(date);
+  copy.setHours(12, 0, 0, 0);
+  return copy.toISOString();
+};
+
+const parseScheduleDateValue = (value?: string) => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parseDateKey(formatDateKey(parsed));
+};
+
+const isWeekend = (date: Date) => {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+};
+
+const DOCS_COMUNICACAO = [
+  'communication_and_channel',
+  'numero_whatsapp_oficial',
+  'configuracao_meta_business',
+  'templates_mensagem',
+];
+
+const DOCS_INTELLIGENT_AGENT = [
+  'intelligent_agent',
+  'perfil_visual',
+  'nome_identidade_agente',
+  'base_conhecimento',
+  'jornada_conversacional',
+];
+
+const DOCS_INTEGRATIONS = [
+  'integrations_and_settings',
+  'crm',
+  'relatorios_dashboards',
+  'outras_integracoes',
+];
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -67,78 +136,148 @@ const Onboarding = () => {
   const [rgCpf, setRgCpf] = useState<File[]>([]);
   const [comprovanteEndereco, setComprovanteEndereco] = useState<File[]>([]);
   const [logotipo, setLogotipo] = useState<File[]>([]);
-  const [documentosExistentes, setDocumentosExistentes] = useState<any[]>([]);
+  const [documentosExistentes, setDocumentosExistentes] = useState<DocumentoUpload[]>([]);
 
-  // Mapa de tipos de documentos para estado
-  const tiposDocumentos = {
-    contrato_social: { state: contratoSocial, setState: setContratoSocial, label: 'Contrato Social' },
-    rg_cpf: { state: rgCpf, setState: setRgCpf, label: 'RG/CPF' },
-    comprovante_endereco: { state: comprovanteEndereco, setState: setComprovanteEndereco, label: 'Comprovante de Endereço' },
-    logotipo: { state: logotipo, setState: setLogotipo, label: 'Logotipo e Identidade Visual' }
+  // Seções avançadas
+  const [numeroWhatsappOficial, setNumeroWhatsappOficial] = useState('');
+  const [metaScheduleDate, setMetaScheduleDate] = useState<Date | undefined>(undefined);
+  const [metaScheduleTime, setMetaScheduleTime] = useState('');
+  const [templatesMensagem, setTemplatesMensagem] = useState('');
+  const [communicationFiles, setCommunicationFiles] = useState<File[]>([]);
+  const [scheduleErro, setScheduleErro] = useState<string | null>(null);
+
+  const [nomeIdentidadeAgente, setNomeIdentidadeAgente] = useState('');
+  const [baseConhecimento, setBaseConhecimento] = useState('');
+  const [jornadaConversacional, setJornadaConversacional] = useState('');
+  const [intelligentAgentFiles, setIntelligentAgentFiles] = useState<File[]>([]);
+
+  const [crm, setCrm] = useState('');
+  const [relatoriosDashboards, setRelatoriosDashboards] = useState('');
+  const [outrasIntegracoes, setOutrasIntegracoes] = useState('');
+  const [integrationsFiles, setIntegrationsFiles] = useState<File[]>([]);
+
+  const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
+
+  const aplicarCommunicationAndChannelData = (data?: CommunicationAndChannel | null) => {
+    setNumeroWhatsappOficial(data?.numeroWhatsappOficial || '');
+    const scheduleData = data?.metaBusinessSchedule?.data;
+    const parsedDate = parseScheduleDateValue(scheduleData);
+    setMetaScheduleDate(parsedDate);
+    setMetaScheduleTime(data?.metaBusinessSchedule?.horario || '');
+    setTemplatesMensagem(data?.templatesMensagem || '');
   };
+
+  const aplicarIntelligentAgentData = (data?: IntelligentAgent | null) => {
+    setNomeIdentidadeAgente(data?.nomeIdentidadeAgente || '');
+    setBaseConhecimento(data?.baseConhecimento || '');
+    setJornadaConversacional(data?.jornadaConversacional || '');
+  };
+
+  const aplicarIntegrationsAndSettingsData = (data?: IntegrationsAndSettings | null) => {
+    setCrm(data?.crm || '');
+    setRelatoriosDashboards(data?.relatoriosDashboards || '');
+    setOutrasIntegracoes(data?.outrasIntegracoes || '');
+  };
+
+  useEffect(() => {
+    setSchedules(scheduleService.listar());
+    const unsubscribe = scheduleService.subscribe((entries) => setSchedules(entries));
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const tomorrow = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
+
+  const horariosPorData = useMemo(() => {
+    return schedules.reduce<Record<string, Set<string>>>((acc, item) => {
+      if (!acc[item.data]) {
+        acc[item.data] = new Set();
+      }
+      acc[item.data].add(item.horario);
+      return acc;
+    }, {});
+  }, [schedules]);
+
+  const userSchedule = useMemo(() => {
+    if (!user) return undefined;
+    return schedules.find((item) => item.userId === user.id);
+  }, [schedules, user?.id]);
+
+  useEffect(() => {
+    if (!userSchedule) return;
+    if (userSchedule.data) {
+      const currentKey = formatDateKey(metaScheduleDate);
+      if (currentKey !== userSchedule.data) {
+        const parsed = parseDateKey(userSchedule.data);
+        if (parsed) setMetaScheduleDate(parsed);
+      }
+    }
+    if (userSchedule.horario && metaScheduleTime !== userSchedule.horario) {
+      setMetaScheduleTime(userSchedule.horario);
+    }
+  }, [userSchedule, metaScheduleDate, metaScheduleTime]);
+
+  useEffect(() => {
+    if (!userSchedule && metaScheduleTime) {
+      setMetaScheduleTime('');
+    }
+  }, [userSchedule, metaScheduleTime]);
 
   const loadExistingData = async () => {
     const currentUser = getCurrentUser();
     if (!currentUser) return;
 
     try {
-      // Verificar se há dados passados via location.state (do PainelUsuario)
       const preloadedData = (location.state as any)?.preloadData;
+      let data = preloadedData;
 
-      if (preloadedData) {
-        // Usar dados passados do estado
-        const data = preloadedData;
-        setOnboardingId(data.id || null);
-        setRazaoSocial(data.razaoSocial);
-        setNomeFantasia(data.nomeFantasia);
-        setCnpj(data.cnpj);
-        setInscricaoEstadual(data.inscricaoEstadual || '');
-        setInscricaoMunicipal(data.inscricaoMunicipal || '');
-        setLogradouro(data.endereco.logradouro);
-        setNumero(data.endereco.numero);
-        setComplemento(data.endereco.complemento || '');
-        setBairro(data.endereco.bairro);
-        setCidade(data.endereco.cidade);
-        setEstado(data.endereco.estado);
-        setCep(data.endereco.cep);
-        setRepresentantes(data.representantesLegais);
-        setContatoOpNome(data.contatoOperacional.nome);
-        setContatoOpCargo(data.contatoOperacional.cargo);
-        setContatoOpTelefone(data.contatoOperacional.telefone);
-        setContatoOpEmail(data.contatoOperacional.email);
-        setContatoFinNome(data.contatoFinanceiro.nome);
-        setContatoFinCargo(data.contatoFinanceiro.cargo);
-        setContatoFinTelefone(data.contatoFinanceiro.telefone);
-        setContatoFinEmail(data.contatoFinanceiro.email);
-        setDocumentosExistentes(data.documentos || []);
-      } else {
-        // Se não houver dados no estado, buscar do backend
-        const data = await getOnboardingByUserId(currentUser.id);
-        if (data) {
-          setOnboardingId(data.id || null);
-          setRazaoSocial(data.razaoSocial);
-          setNomeFantasia(data.nomeFantasia);
-          setCnpj(data.cnpj);
-          setInscricaoEstadual(data.inscricaoEstadual || '');
-          setInscricaoMunicipal(data.inscricaoMunicipal || '');
-          setLogradouro(data.endereco.logradouro);
-          setNumero(data.endereco.numero);
-          setComplemento(data.endereco.complemento || '');
-          setBairro(data.endereco.bairro);
-          setCidade(data.endereco.cidade);
-          setEstado(data.endereco.estado);
-          setCep(data.endereco.cep);
-          setRepresentantes(data.representantesLegais);
-          setContatoOpNome(data.contatoOperacional.nome);
-          setContatoOpCargo(data.contatoOperacional.cargo);
-          setContatoOpTelefone(data.contatoOperacional.telefone);
-          setContatoOpEmail(data.contatoOperacional.email);
-          setContatoFinNome(data.contatoFinanceiro.nome);
-          setContatoFinCargo(data.contatoFinanceiro.cargo);
-          setContatoFinTelefone(data.contatoFinanceiro.telefone);
-          setContatoFinEmail(data.contatoFinanceiro.email);
-          setDocumentosExistentes(data.documentos || []);
-        }
+      if (!data) {
+        data = await getOnboardingByUserId(currentUser.id);
+      }
+
+      if (!data) return;
+
+      setOnboardingId(data.id || null);
+      setRazaoSocial(data.razaoSocial || '');
+      setNomeFantasia(data.nomeFantasia || '');
+      setCnpj(data.cnpj || '');
+      setInscricaoEstadual(data.inscricaoEstadual || '');
+      setInscricaoMunicipal(data.inscricaoMunicipal || '');
+      setLogradouro(data.endereco?.logradouro || '');
+      setNumero(data.endereco?.numero || '');
+      setComplemento(data.endereco?.complemento || '');
+      setBairro(data.endereco?.bairro || '');
+      setCidade(data.endereco?.cidade || '');
+      setEstado(data.endereco?.estado || '');
+      setCep(data.endereco?.cep || '');
+      setRepresentantes(data.representantesLegais || []);
+      setContatoOpNome(data.contatoOperacional?.nome || '');
+      setContatoOpCargo(data.contatoOperacional?.cargo || '');
+      setContatoOpTelefone(data.contatoOperacional?.telefone || '');
+      setContatoOpEmail(data.contatoOperacional?.email || '');
+      setContatoFinNome(data.contatoFinanceiro?.nome || '');
+      setContatoFinCargo(data.contatoFinanceiro?.cargo || '');
+      setContatoFinTelefone(data.contatoFinanceiro?.telefone || '');
+      setContatoFinEmail(data.contatoFinanceiro?.email || '');
+      setDocumentosExistentes(data.documentos || []);
+      aplicarCommunicationAndChannelData(data.communicationAndChannel || null);
+      aplicarIntelligentAgentData(data.intelligentAgent || null);
+      aplicarIntegrationsAndSettingsData(data.integrationsAndSettings || null);
+
+      const scheduleInfo = data.communicationAndChannel?.metaBusinessSchedule;
+      if (scheduleInfo?.data && scheduleInfo?.horario) {
+        scheduleService.reservar({
+          userId: currentUser.id,
+          clienteNome: data.nomeFantasia || data.razaoSocial || currentUser.nome || 'Cliente',
+          data: scheduleInfo.data,
+          horario: scheduleInfo.horario,
+        });
       }
     } catch (error) {
       console.log('Nenhum onboarding encontrado, iniciando novo');
@@ -146,6 +285,145 @@ const Onboarding = () => {
       setDataLoaded(true);
     }
   };
+
+  const isBeforeTomorrow = (date: Date) => {
+    const candidate = new Date(date);
+    candidate.setHours(0, 0, 0, 0);
+    return candidate.getTime() < tomorrow.getTime();
+  };
+
+  const diaEstaLotado = (date: Date) => {
+    const key = formatDateKey(date);
+    if (!key) return true;
+    if (userSchedule && userSchedule.data === key) return false;
+    const ocupados = horariosPorData[key];
+    if (!ocupados) return false;
+    return ocupados.size >= HORARIOS_VALIDOS.length;
+  };
+
+  const horarioEstaIndisponivel = (dateKey: string, horario: string) => {
+    const ocupados = horariosPorData[dateKey];
+    if (!ocupados) return false;
+    if (userSchedule && userSchedule.data === dateKey && userSchedule.horario === horario) {
+      return false;
+    }
+    return ocupados.has(horario);
+  };
+
+  const handleSelecionarData = (date?: Date) => {
+    setScheduleErro(null);
+    if (!date) {
+      setMetaScheduleDate(undefined);
+      return;
+    }
+    const normalized = new Date(date);
+    normalized.setHours(0, 0, 0, 0);
+    if (isBeforeTomorrow(normalized)) {
+      toast.error('Selecione uma data a partir das 9h do dia seguinte.');
+      return;
+    }
+    if (isWeekend(normalized)) {
+      toast.error('Agendamentos disponíveis apenas de segunda a sexta-feira.');
+      return;
+    }
+    setMetaScheduleDate(normalized);
+  };
+
+  const handleSelecionarHorario = (horario: string) => {
+    if (!user) return;
+    if (!metaScheduleDate) {
+      setScheduleErro('Selecione uma data antes do horário.');
+      return;
+    }
+
+    const dateKey = formatDateKey(metaScheduleDate);
+
+    if (horarioEstaIndisponivel(dateKey, horario)) {
+      const mensagem = 'Horário indisponível, escolha outro horário.';
+      setScheduleErro(mensagem);
+      toast.error(mensagem);
+      return;
+    }
+
+    const resultado = scheduleService.reservar({
+      userId: user.id,
+      clienteNome: nomeFantasia || razaoSocial || user.nome || 'Cliente',
+      data: metaScheduleDate,
+      horario,
+    });
+
+    if (!resultado.success) {
+      const mensagem = resultado.message || 'Não foi possível reservar o horário.';
+      setScheduleErro(mensagem);
+      toast.error(mensagem);
+      return;
+    }
+
+    setScheduleErro(null);
+    setMetaScheduleTime(horario);
+    toast.success('Horário reservado com sucesso!');
+  };
+
+  const handleLiberarHorario = () => {
+    if (!user) return;
+    scheduleService.liberar(user.id);
+    setMetaScheduleDate(undefined);
+    setMetaScheduleTime('');
+    setScheduleErro(null);
+    toast.success('Horário liberado.');
+  };
+
+  const scheduleResumo = useMemo(() => {
+    if (!metaScheduleDate || !metaScheduleTime) return '';
+    try {
+      const dataFormatada = metaScheduleDate.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      return `${dataFormatada} às ${metaScheduleTime}`;
+    } catch {
+      return '';
+    }
+  }, [metaScheduleDate, metaScheduleTime]);
+
+  const diaSelecionadoKey = formatDateKey(metaScheduleDate);
+
+  const documentosPorTipos = (tipos: string | string[]) => {
+    const lista = Array.isArray(tipos) ? tipos : [tipos];
+    return documentosExistentes
+      .map((doc, index) => ({ doc, index }))
+      .filter(({ doc }) => {
+        const tipoDoc = doc.tipoDocumento || doc.tipo;
+        return tipoDoc && lista.includes(tipoDoc);
+      });
+  };
+
+  const possuiDocumento = (tipos: string | string[]) => documentosPorTipos(tipos).length > 0;
+
+  const renderDocumentosExistentes = (tipos: string | string[]) =>
+    documentosPorTipos(tipos).map(({ doc, index }) => (
+      <div
+        key={doc.fileId || doc.id || `${doc.tipoDocumento || doc.tipo}-${index}`}
+        className="mb-3 flex items-center justify-between p-2 bg-green-500/10 rounded border border-green-500/30 text-sm"
+      >
+        <span className="text-foreground truncate pr-4">{doc.filename || doc.nome}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={!(doc.fileId || doc.id)}
+          onClick={() => {
+            const fileIdentifier = doc.fileId || doc.id;
+            if (!fileIdentifier) return;
+            removeDocumentoExistente(fileIdentifier, index);
+          }}
+          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    ));
 
   const addRepresentante = () => {
     setRepresentantes([
@@ -213,6 +491,27 @@ const Onboarding = () => {
           telefone: contatoFinTelefone,
           email: contatoFinEmail,
         },
+        communicationAndChannel: {
+          numeroWhatsappOficial: numeroWhatsappOficial || '',
+          templatesMensagem: templatesMensagem || '',
+          metaBusinessSchedule:
+            metaScheduleDate && metaScheduleTime
+              ? {
+                  data: toIsoDateMidday(metaScheduleDate),
+                  horario: metaScheduleTime,
+                }
+              : null,
+        },
+        intelligentAgent: {
+          nomeIdentidadeAgente: nomeIdentidadeAgente || '',
+          baseConhecimento: baseConhecimento || '',
+          jornadaConversacional: jornadaConversacional || '',
+        },
+        integrationsAndSettings: {
+          crm: crm || '',
+          relatoriosDashboards: relatoriosDashboards || '',
+          outrasIntegracoes: outrasIntegracoes || '',
+        },
         observacoes: '',
         documentos: [],
       };
@@ -233,8 +532,8 @@ const Onboarding = () => {
       toast.success('Dados salvos! Enviando arquivos...');
 
       // Passo 2: Fazer upload dos arquivos em sequência
-      const uploadFiles = async (files: File[], tipo: string, tipoLabel: string) => {
-        const results: any[] = [];
+      const uploadFiles = async (files: File[], tipo: DocumentoTipo, tipoLabel: string) => {
+        const results: DocumentoUpload[] = [];
         for (let i = 0; i < files.length; i++) {
           const f = files[i];
           try {
@@ -261,6 +560,21 @@ const Onboarding = () => {
       const documentosRgCpf = await uploadFiles(rgCpf, 'rg_cpf', 'RG/CPF');
       const documentosComprovanteEndereco = await uploadFiles(comprovanteEndereco, 'comprovante_endereco', 'Comprovante de Endereço');
       const documentosLogotipo = await uploadFiles(logotipo, 'logotipo', 'Logotipo');
+      const documentosComunicacao = await uploadFiles(
+        communicationFiles,
+        'communication_and_channel',
+        'Comunicação e Canal Oficial'
+      );
+      const documentosAgente = await uploadFiles(
+        intelligentAgentFiles,
+        'intelligent_agent',
+        'Agente Inteligente'
+      );
+      const documentosIntegracoes = await uploadFiles(
+        integrationsFiles,
+        'integrations_and_settings',
+        'Integrações e Parametrizações'
+      );
 
       // Combinar todos os documentos
       const todosOsDocumentos = [
@@ -268,10 +582,22 @@ const Onboarding = () => {
         ...documentosRgCpf,
         ...documentosComprovanteEndereco,
         ...documentosLogotipo,
+        ...documentosComunicacao,
+        ...documentosAgente,
+        ...documentosIntegracoes,
       ];
 
       // Atualizar estado local com novos documentos
       setDocumentosExistentes([...documentosExistentes, ...todosOsDocumentos]);
+
+      if (communicationFiles.length) setCommunicationFiles([]);
+      if (intelligentAgentFiles.length) setIntelligentAgentFiles([]);
+      if (integrationsFiles.length) setIntegrationsFiles([]);
+
+      scheduleService.atualizarClienteNome(
+        user.id,
+        nomeFantasia || razaoSocial || user.nome || 'Cliente'
+      );
 
       setLoadingMessage('');
       toast.success('Onboarding salvo com sucesso!');
@@ -628,117 +954,307 @@ const Onboarding = () => {
             </div>
           </div>
 
-          {/* Bloco 5 - Documentos */}
+          {/* Bloco 5 - Comunicação e Canal Oficial */}
+          <div className="bg-card p-6 rounded-xl border border-border shadow-card">
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              Comunicação e Canal Oficial
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Configure os canais de atendimento que serão utilizados pela IA e organize o agendamento
+              inicial com a equipe Meta.
+            </p>
+
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground">
+                    Número oficial do WhatsApp
+                  </label>
+                  {possuiDocumento(DOCS_COMUNICACAO) && (
+                    <span className="text-xs text-green-500 font-semibold">✓ Já enviado</span>
+                  )}
+                </div>
+                <MaskedInput
+                  mask="(99) 99999-9999"
+                  value={numeroWhatsappOficial}
+                  onChange={(e) => setNumeroWhatsappOficial(e.target.value)}
+                  className="bg-secondary border-border"
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Configuração Meta / Business Manager
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Escolha um horário disponível a partir das 9h do dia seguinte.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
+                  <div className="border border-border rounded-lg p-4 bg-secondary/40">
+                    <Calendar
+                      mode="single"
+                      selected={metaScheduleDate}
+                      onSelect={handleSelecionarData}
+                      disabled={(date) => isBeforeTomorrow(date) || isWeekend(date) || diaEstaLotado(date)}
+                      initialFocus
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-foreground">Horários disponíveis</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {HORARIOS_VALIDOS.map((horario) => {
+                        const dateKey = diaSelecionadoKey;
+                        const disabled =
+                          !metaScheduleDate || !dateKey || horarioEstaIndisponivel(dateKey, horario);
+                        const selecionado = metaScheduleTime === horario;
+                        return (
+                          <Button
+                            key={horario}
+                            type="button"
+                            variant={selecionado ? 'default' : 'outline'}
+                            disabled={disabled}
+                            onClick={() => handleSelecionarHorario(horario)}
+                            className={
+                              selecionado ? 'bg-primary text-primary-foreground hover:bg-primary' : undefined
+                            }
+                          >
+                            {horario}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    {scheduleResumo && (
+                      <p className="text-sm text-foreground">
+                        Horário selecionado: <span className="font-semibold">{scheduleResumo}</span>
+                      </p>
+                    )}
+                    {scheduleErro && <p className="text-sm text-destructive">{scheduleErro}</p>}
+                    {userSchedule && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleLiberarHorario}
+                        className="w-fit"
+                      >
+                        Remover agendamento
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Templates de mensagem</label>
+                <Textarea
+                  value={templatesMensagem}
+                  onChange={(e) => setTemplatesMensagem(e.target.value)}
+                  className="bg-secondary border-border min-h-[120px]"
+                  placeholder="Descreva os templates atuais e requisitos específicos."
+                />
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">
+                  Anexos (Comunicação e Canal Oficial)
+                </p>
+                {renderDocumentosExistentes(DOCS_COMUNICACAO)}
+                <FileUpload
+                  label="Adicionar anexo (PDF, JPG ou PNG até 10 MB)"
+                  files={communicationFiles}
+                  onChange={setCommunicationFiles}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  documentType="communication_and_channel"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 6 - Agente Inteligente */}
+          <div className="bg-card p-6 rounded-xl border border-border shadow-card">
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              Agente Inteligente (IA Conversacional)
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Detalhe a personalidade do agente virtual e forneça materiais que apoiem a criação das
+              respostas.
+            </p>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Nome e identidade do agente</label>
+                <Input
+                  value={nomeIdentidadeAgente}
+                  onChange={(e) => setNomeIdentidadeAgente(e.target.value)}
+                  className="bg-secondary border-border"
+                  placeholder="Assistente IA Atende Mais"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Base de conhecimento</label>
+                <Textarea
+                  value={baseConhecimento}
+                  onChange={(e) => setBaseConhecimento(e.target.value)}
+                  className="bg-secondary border-border min-h-[120px]"
+                  placeholder="Liste conteúdos, FAQs ou materiais que devem ser considerados."
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Jornada conversacional</label>
+                <Textarea
+                  value={jornadaConversacional}
+                  onChange={(e) => setJornadaConversacional(e.target.value)}
+                  className="bg-secondary border-border min-h-[120px]"
+                  placeholder="Descreva o fluxo ideal de atendimento e principais etapas."
+                />
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">
+                  Perfil visual (anexo opcional)
+                </p>
+                {renderDocumentosExistentes(DOCS_INTELLIGENT_AGENT)}
+                <FileUpload
+                  label="Adicionar anexo (PDF, JPG ou PNG até 10 MB)"
+                  files={intelligentAgentFiles}
+                  onChange={setIntelligentAgentFiles}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  documentType="intelligent_agent"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 7 - Integrações e Parametrizações */}
+          <div className="bg-card p-6 rounded-xl border border-border shadow-card">
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              Integrações e Parametrizações
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Informe as ferramentas utilizadas e os relatórios necessários para que possamos preparar as
+              integrações.
+            </p>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">CRM</label>
+                <Input
+                  value={crm}
+                  onChange={(e) => setCrm(e.target.value)}
+                  className="bg-secondary border-border"
+                  placeholder="Ex.: HubSpot, RD Station"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Relatórios e dashboards</label>
+                <Textarea
+                  value={relatoriosDashboards}
+                  onChange={(e) => setRelatoriosDashboards(e.target.value)}
+                  className="bg-secondary border-border min-h-[120px]"
+                  placeholder="Quais indicadores e formatos de relatório são relevantes?"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Outras integrações</label>
+                <Textarea
+                  value={outrasIntegracoes}
+                  onChange={(e) => setOutrasIntegracoes(e.target.value)}
+                  className="bg-secondary border-border min-h-[100px]"
+                  placeholder="Ex.: Google Agenda, Outlook, outras ferramentas."
+                />
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">
+                  Anexos (Integrações e Parametrizações)
+                </p>
+                {renderDocumentosExistentes(DOCS_INTEGRATIONS)}
+                <FileUpload
+                  label="Adicionar anexo (PDF, JPG ou PNG até 10 MB)"
+                  files={integrationsFiles}
+                  onChange={setIntegrationsFiles}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  documentType="integrations_and_settings"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Documentos Complementares */}
           <div className="bg-card p-6 rounded-xl border border-border shadow-card">
             <h3 className="text-xl font-semibold text-foreground mb-6 pb-3 border-b border-border">
               Documentos Complementares
             </h3>
 
             <div className="space-y-6">
-              {/* Contrato Social */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-sm font-medium text-foreground">Contrato Social</label>
-                  {documentosExistentes.some(d => d.tipoDocumento === 'contrato_social') && (
+                  {possuiDocumento('contrato_social') && (
                     <span className="text-xs text-green-500 font-semibold">✓ Já enviado</span>
                   )}
                 </div>
-                {documentosExistentes.filter(d => d.tipoDocumento === 'contrato_social').map((doc, idx) => (
-                  <div key={idx} className="mb-3 flex items-center justify-between p-2 bg-green-500/10 rounded border border-green-500/30 text-sm">
-                    <span className="text-foreground">{doc.filename || doc.nome}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeDocumentoExistente(doc.fileId || doc.id, documentosExistentes.indexOf(doc))}
-                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                {renderDocumentosExistentes('contrato_social')}
                 <FileUpload
-                  label=""
+                  label="Anexar documento (opcional)"
                   files={contratoSocial}
                   onChange={setContratoSocial}
-                  documentType="contrato-social"
+                  documentType="contrato_social"
                 />
               </div>
 
-              {/* RG/CPF */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-sm font-medium text-foreground">RG/CPF</label>
-                  {documentosExistentes.some(d => d.tipoDocumento === 'rg_cpf') && (
+                  {possuiDocumento('rg_cpf') && (
                     <span className="text-xs text-green-500 font-semibold">✓ Já enviado</span>
                   )}
                 </div>
-                {documentosExistentes.filter(d => d.tipoDocumento === 'rg_cpf').map((doc, idx) => (
-                  <div key={idx} className="mb-3 flex items-center justify-between p-2 bg-green-500/10 rounded border border-green-500/30 text-sm">
-                    <span className="text-foreground">{doc.filename || doc.nome}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeDocumentoExistente(doc.fileId || doc.id, documentosExistentes.indexOf(doc))}
-                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                <FileUpload label="" files={rgCpf} onChange={setRgCpf} documentType="rg-cpf" />
+                {renderDocumentosExistentes('rg_cpf')}
+                <FileUpload
+                  label="Anexar documento (opcional)"
+                  files={rgCpf}
+                  onChange={setRgCpf}
+                  documentType="rg_cpf"
+                />
               </div>
 
-              {/* Comprovante de Endereço */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-sm font-medium text-foreground">Comprovante de Endereço</label>
-                  {documentosExistentes.some(d => d.tipoDocumento === 'comprovante_endereco') && (
+                  {possuiDocumento('comprovante_endereco') && (
                     <span className="text-xs text-green-500 font-semibold">✓ Já enviado</span>
                   )}
                 </div>
-                {documentosExistentes.filter(d => d.tipoDocumento === 'comprovante_endereco').map((doc, idx) => (
-                  <div key={idx} className="mb-3 flex items-center justify-between p-2 bg-green-500/10 rounded border border-green-500/30 text-sm">
-                    <span className="text-foreground">{doc.filename || doc.nome}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeDocumentoExistente(doc.fileId || doc.id, documentosExistentes.indexOf(doc))}
-                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                <FileUpload label="" files={comprovanteEndereco} onChange={setComprovanteEndereco} documentType="comprovante-endereco" />
+                {renderDocumentosExistentes('comprovante_endereco')}
+                <FileUpload
+                  label="Anexar documento (opcional)"
+                  files={comprovanteEndereco}
+                  onChange={setComprovanteEndereco}
+                  documentType="comprovante_endereco"
+                />
               </div>
 
-              {/* Logotipo */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-foreground">Logotipo e Identidade Visual</label>
-                  {documentosExistentes.some(d => d.tipoDocumento === 'logotipo') && (
+                  <label className="block text-sm font-medium text-foreground">
+                    Logotipo e Identidade Visual
+                  </label>
+                  {possuiDocumento('logotipo') && (
                     <span className="text-xs text-green-500 font-semibold">✓ Já enviado</span>
                   )}
                 </div>
-                {documentosExistentes.filter(d => d.tipoDocumento === 'logotipo').map((doc, idx) => (
-                  <div key={idx} className="mb-3 flex items-center justify-between p-2 bg-green-500/10 rounded border border-green-500/30 text-sm">
-                    <span className="text-foreground">{doc.filename || doc.nome}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeDocumentoExistente(doc.fileId || doc.id, documentosExistentes.indexOf(doc))}
-                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                {renderDocumentosExistentes('logotipo')}
                 <FileUpload
-                  label=""
+                  label="Anexar arquivo (PNG, JPG ou SVG)"
                   files={logotipo}
                   onChange={setLogotipo}
                   accept=".png,.jpg,.jpeg,.svg"

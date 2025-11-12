@@ -20,7 +20,10 @@ router.post('/create', auth, async (req, res) => {
       representantesLegais,
       contatoOperacional,
       contatoFinanceiro,
-      observacoes
+      observacoes,
+      communicationAndChannel,
+      intelligentAgent,
+      integrationsAndSettings
     } = req.body;
 
     if (!dadosCadastrais || !endereco || !representantesLegais ||
@@ -40,7 +43,10 @@ router.post('/create', auth, async (req, res) => {
         representantesLegais,
         contatoOperacional,
         contatoFinanceiro,
-        observacoes
+        observacoes,
+        communicationAndChannel,
+        intelligentAgent,
+        integrationsAndSettings
       });
       await onboarding.save();
       return res.json({
@@ -57,7 +63,10 @@ router.post('/create', auth, async (req, res) => {
       representantesLegais,
       contatoOperacional,
       contatoFinanceiro,
-      observacoes: observacoes || ''
+      observacoes: observacoes || '',
+      communicationAndChannel,
+      intelligentAgent,
+      integrationsAndSettings
     });
 
     res.status(201).json({
@@ -125,7 +134,10 @@ router.put('/:id', auth, async (req, res) => {
       representantesLegais,
       contatoOperacional,
       contatoFinanceiro,
-      observacoes
+      observacoes,
+      communicationAndChannel,
+      intelligentAgent,
+      integrationsAndSettings
     } = req.body;
 
     // Atualiza apenas os campos informados
@@ -135,6 +147,9 @@ router.put('/:id', auth, async (req, res) => {
     if (contatoOperacional) onboarding.contatoOperacional = contatoOperacional;
     if (contatoFinanceiro) onboarding.contatoFinanceiro = contatoFinanceiro;
     if (observacoes !== undefined) onboarding.observacoes = observacoes;
+    if (communicationAndChannel !== undefined) onboarding.communicationAndChannel = communicationAndChannel;
+    if (intelligentAgent !== undefined) onboarding.intelligentAgent = intelligentAgent;
+    if (integrationsAndSettings !== undefined) onboarding.integrationsAndSettings = integrationsAndSettings;
 
     onboarding.dataAtualizacao = new Date();
 

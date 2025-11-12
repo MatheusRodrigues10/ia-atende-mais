@@ -12,18 +12,60 @@ export interface Contato {
   email: string;
 }
 
+export type DocumentoTipo =
+  | 'contrato_social'
+  | 'rg_cpf'
+  | 'comprovante_endereco'
+  | 'logotipo'
+  | 'numero_whatsapp_oficial'
+  | 'configuracao_meta_business'
+  | 'templates_mensagem'
+  | 'nome_identidade_agente'
+  | 'perfil_visual'
+  | 'base_conhecimento'
+  | 'jornada_conversacional'
+  | 'crm'
+  | 'relatorios_dashboards'
+  | 'outras_integracoes'
+  | 'communication_and_channel'
+  | 'intelligent_agent'
+  | 'integrations_and_settings';
+
 export interface DocumentoUpload {
   id?: string;
   fileId?: string;
   nome?: string;
   filename?: string;
-  tipo?: 'contrato_social' | 'rg_cpf' | 'comprovante_endereco' | 'logotipo';
-  tipoDocumento?: 'contrato_social' | 'rg_cpf' | 'comprovante_endereco' | 'logotipo';
+  tipo?: DocumentoTipo;
+  tipoDocumento?: DocumentoTipo;
   arquivo?: File | null;
   url?: string;
   dataUpload?: Date;
   uploadedAt?: Date;
   contentType?: string;
+}
+
+export interface MetaBusinessSchedule {
+  data?: string;
+  horario?: string;
+}
+
+export interface CommunicationAndChannel {
+  numeroWhatsappOficial?: string;
+  metaBusinessSchedule?: MetaBusinessSchedule | null;
+  templatesMensagem?: string;
+}
+
+export interface IntelligentAgent {
+  nomeIdentidadeAgente?: string;
+  baseConhecimento?: string;
+  jornadaConversacional?: string;
+}
+
+export interface IntegrationsAndSettings {
+  crm?: string;
+  relatoriosDashboards?: string;
+  outrasIntegracoes?: string;
 }
 
 export interface OnboardingData {
@@ -53,6 +95,10 @@ export interface OnboardingData {
   contatoOperacional: Contato;
   contatoFinanceiro: Contato;
   
+  communicationAndChannel?: CommunicationAndChannel;
+  intelligentAgent?: IntelligentAgent;
+  integrationsAndSettings?: IntegrationsAndSettings;
+
   // Documentos
   documentos: DocumentoUpload[];
   

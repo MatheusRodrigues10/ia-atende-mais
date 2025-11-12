@@ -7,6 +7,28 @@ import { Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const DOCS_COMUNICACAO = [
+  'communication_and_channel',
+  'numero_whatsapp_oficial',
+  'configuracao_meta_business',
+  'templates_mensagem',
+];
+
+const DOCS_INTELLIGENT_AGENT = [
+  'intelligent_agent',
+  'perfil_visual',
+  'nome_identidade_agente',
+  'base_conhecimento',
+  'jornada_conversacional',
+];
+
+const DOCS_INTEGRATIONS = [
+  'integrations_and_settings',
+  'crm',
+  'relatorios_dashboards',
+  'outras_integracoes',
+];
+
 const PainelUsuario = () => {
   const navigate = useNavigate();
   const user = getCurrentUser();
@@ -100,19 +122,81 @@ const PainelUsuario = () => {
     }
   };
 
-  const getDocumentoLabel = (tipoDocumento: string): string => {
-    const tipos: { [key: string]: string } = {
-      'contrato_social': 'Contrato Social',
-      'rg_cpf': 'RG/CPF',
-      'comprovante_endereco': 'Comprovante de Endereço',
-      'logotipo': 'Logotipo e Identidade Visual'
-    };
-    return tipos[tipoDocumento] || tipoDocumento || 'Documento';
+  const formatSchedule = (schedule?: { data?: string; horario?: string }) => {
+    if (!schedule || !schedule.data || !schedule.horario) return '-';
+    try {
+      const dateObj = new Date(schedule.data);
+      if (Number.isNaN(dateObj.getTime())) {
+        return `Horário: ${schedule.horario}`;
+      }
+      return `${dateObj.toLocaleDateString('pt-BR')} às ${schedule.horario}`;
+    } catch {
+      return schedule.horario || '-';
+    }
   };
 
-  const documentosPorTipo = (tipoDocumento: string) => {
-    return onboarding.documentos.filter(doc => doc.tipoDocumento === tipoDocumento);
+  const documentosPorTipos = (tipos: string | string[]) => {
+    const lista = Array.isArray(tipos) ? tipos : [tipos];
+    return onboarding.documentos.filter((doc) => {
+      const tipo = doc.tipoDocumento || doc.tipo;
+      return tipo ? lista.includes(tipo) : false;
+    });
   };
+
+  const renderListaDocumentos = (tipos: string | string[], titulo: string) => {
+    const docs = documentosPorTipos(tipos);
+    if (docs.length === 0) return null;
+
+    return (
+      <div>
+        <h4 className="font-medium text-foreground mb-3">{titulo}</h4>
+        <div className="space-y-2">
+          {docs.map((doc, index) => (
+            <div
+              key={`${doc.fileId || doc.id || doc.filename}-${index}`}
+              className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg"
+            >
+              <div className="flex-1">
+                <p className="font-medium text-foreground">{doc.filename || doc.nome}</p>
+                <p className="text-xs text-muted-foreground">
+                  {doc.uploadedAt || doc.dataUpload
+                    ? `Enviado em ${new Date(doc.uploadedAt || doc.dataUpload).toLocaleDateString('pt-BR')}`
+                    : ''}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary"
+                onClick={() => {
+                  downloadOnboardingFile(doc.fileId || doc.id || '')
+                    .then((blob: Blob) => {
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = doc.filename || doc.nome || 'arquivo';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    })
+                    .catch(() => {
+                      alert('Erro ao baixar arquivo');
+                    });
+                }}
+              >
+                Baixar
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const communication = onboarding.communicationAndChannel;
+  const intelligentAgent = onboarding.intelligentAgent;
+  const integrations = onboarding.integrationsAndSettings;
 
   return (
     <div className="min-h-screen bg-background">
@@ -262,183 +346,106 @@ const PainelUsuario = () => {
           </div>
         </div>
 
-        {/* Documentos Enviados */}
-        {onboarding.documentos && onboarding.documentos.length > 0 && (
-          <div className="bg-card p-6 rounded-xl border border-border shadow-card">
-            <h3 className="text-xl font-semibold text-foreground mb-4 pb-3 border-b border-border">
-              Documentos Enviados
-            </h3>
-            <div className="space-y-6">
-              {/* Contrato Social */}
-              {documentosPorTipo('contrato_social').length > 0 && (
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">Contrato Social</h4>
-                  <div className="space-y-2">
-                    {documentosPorTipo('contrato_social').map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{doc.filename || doc.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Enviado em {new Date(doc.uploadedAt || doc.dataUpload).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary"
-                          onClick={() => {
-                            downloadOnboardingFile(doc.fileId || doc.id || '')
-                              .then((blob: Blob) => {
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = doc.filename || doc.nome || 'arquivo';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                window.URL.revokeObjectURL(url);
-                              })
-                              .catch(() => {
-                                alert('Erro ao baixar arquivo');
-                              });
-                          }}
-                        >
-                          Baixar
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* RG/CPF */}
-              {documentosPorTipo('rg_cpf').length > 0 && (
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">RG/CPF</h4>
-                  <div className="space-y-2">
-                    {documentosPorTipo('rg_cpf').map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{doc.filename || doc.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Enviado em {new Date(doc.uploadedAt || doc.dataUpload).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary"
-                          onClick={() => {
-                            downloadOnboardingFile(doc.fileId || doc.id || '')
-                              .then((blob: Blob) => {
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = doc.filename || doc.nome || 'arquivo';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                window.URL.revokeObjectURL(url);
-                              })
-                              .catch(() => {
-                                alert('Erro ao baixar arquivo');
-                              });
-                          }}
-                        >
-                          Baixar
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Comprovante de Endereço */}
-              {documentosPorTipo('comprovante_endereco').length > 0 && (
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">Comprovante de Endereço</h4>
-                  <div className="space-y-2">
-                    {documentosPorTipo('comprovante_endereco').map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{doc.filename || doc.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Enviado em {new Date(doc.uploadedAt || doc.dataUpload).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary"
-                          onClick={() => {
-                            downloadOnboardingFile(doc.fileId || doc.id || '')
-                              .then((blob: Blob) => {
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = doc.filename || doc.nome || 'arquivo';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                window.URL.revokeObjectURL(url);
-                              })
-                              .catch(() => {
-                                alert('Erro ao baixar arquivo');
-                              });
-                          }}
-                        >
-                          Baixar
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Logotipo */}
-              {documentosPorTipo('logotipo').length > 0 && (
-                <div>
-                  <h4 className="font-medium text-foreground mb-3">Logotipo e Identidade Visual</h4>
-                  <div className="space-y-2">
-                    {documentosPorTipo('logotipo').map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{doc.filename || doc.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Enviado em {new Date(doc.uploadedAt || doc.dataUpload).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary"
-                          onClick={() => {
-                            downloadOnboardingFile(doc.fileId || doc.id || '')
-                              .then((blob: Blob) => {
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = doc.filename || doc.nome || 'arquivo';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                window.URL.revokeObjectURL(url);
-                              })
-                              .catch(() => {
-                                alert('Erro ao baixar arquivo');
-                              });
-                          }}
-                        >
-                          Baixar
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* Comunicação e Canal Oficial */}
+      <div className="bg-card p-6 rounded-xl border border-border shadow-card mb-6">
+        <h3 className="text-xl font-semibold text-foreground mb-4 pb-3 border-b border-border">
+          Comunicação e Canal Oficial
+        </h3>
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-muted-foreground mb-1">Número oficial do WhatsApp</p>
+              <p className="text-foreground font-medium">
+                {communication?.numeroWhatsappOficial || '-'}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1">Configuração Meta / Business Manager</p>
+              <p className="text-foreground font-medium">
+                {communication?.metaBusinessSchedule
+                  ? formatSchedule(communication.metaBusinessSchedule)
+                  : '-'}
+              </p>
             </div>
           </div>
-        )}
+          <div>
+            <p className="text-muted-foreground mb-1">Templates de mensagem</p>
+            <p className="text-foreground whitespace-pre-line">
+              {communication?.templatesMensagem || '-'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Agente Inteligente */}
+      <div className="bg-card p-6 rounded-xl border border-border shadow-card mb-6">
+        <h3 className="text-xl font-semibold text-foreground mb-4 pb-3 border-b border-border">
+          Agente Inteligente (IA Conversacional)
+        </h3>
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="text-muted-foreground mb-1">Nome e identidade do agente</p>
+            <p className="text-foreground font-medium">
+              {intelligentAgent?.nomeIdentidadeAgente || '-'}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-1">Base de conhecimento</p>
+            <p className="text-foreground whitespace-pre-line">
+              {intelligentAgent?.baseConhecimento || '-'}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-1">Jornada conversacional</p>
+            <p className="text-foreground whitespace-pre-line">
+              {intelligentAgent?.jornadaConversacional || '-'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Integrações e Parametrizações */}
+      <div className="bg-card p-6 rounded-xl border border-border shadow-card mb-6">
+        <h3 className="text-xl font-semibold text-foreground mb-4 pb-3 border-b border-border">
+          Integrações e Parametrizações
+        </h3>
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="text-muted-foreground mb-1">CRM</p>
+            <p className="text-foreground font-medium">{integrations?.crm || '-'}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-1">Relatórios e dashboards</p>
+            <p className="text-foreground whitespace-pre-line">
+              {integrations?.relatoriosDashboards || '-'}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-1">Outras integrações</p>
+            <p className="text-foreground whitespace-pre-line">
+              {integrations?.outrasIntegracoes || '-'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+        {/* Documentos Enviados */}
+      {onboarding.documentos && onboarding.documentos.length > 0 && (
+        <div className="bg-card p-6 rounded-xl border border-border shadow-card">
+          <h3 className="text-xl font-semibold text-foreground mb-4 pb-3 border-b border-border">
+            Documentos Enviados
+          </h3>
+          <div className="space-y-6">
+            {renderListaDocumentos(DOCS_COMUNICACAO, 'Comunicação e Canal Oficial')}
+            {renderListaDocumentos(DOCS_INTELLIGENT_AGENT, 'Agente Inteligente')}
+            {renderListaDocumentos(DOCS_INTEGRATIONS, 'Integrações e Parametrizações')}
+            {renderListaDocumentos('contrato_social', 'Contrato Social')}
+            {renderListaDocumentos('rg_cpf', 'RG/CPF')}
+            {renderListaDocumentos('comprovante_endereco', 'Comprovante de Endereço')}
+            {renderListaDocumentos('logotipo', 'Logotipo e Identidade Visual')}
+          </div>
+        </div>
+      )}
       </main>
     </div>
   );

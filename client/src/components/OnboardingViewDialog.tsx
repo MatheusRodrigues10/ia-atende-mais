@@ -109,6 +109,19 @@ export const OnboardingViewDialog = ({
     }
   };
 
+  const formatSchedule = (schedule?: { data?: string; horario?: string }): string => {
+    if (!schedule || !schedule.data || !schedule.horario) return '-';
+    try {
+      const dateObj = new Date(schedule.data);
+      if (isNaN(dateObj.getTime())) {
+        return `Horário: ${schedule.horario}`;
+      }
+      return `${dateObj.toLocaleDateString('pt-BR')} às ${schedule.horario}`;
+    } catch {
+      return schedule.horario || '-';
+    }
+  };
+
   const documentosPorTipo = (tipoDocumento: string) => {
     return onboarding?.documentos.filter(doc => doc.tipoDocumento === tipoDocumento) || [];
   };
@@ -168,6 +181,10 @@ export const OnboardingViewDialog = ({
       </Dialog>
     );
   }
+
+  const communicationAndChannel = onboarding.communicationAndChannel;
+  const intelligentAgent = onboarding.intelligentAgent;
+  const integrationsAndSettings = onboarding.integrationsAndSettings;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -325,6 +342,126 @@ export const OnboardingViewDialog = ({
                 </div>
               </div>
             </div>
+
+        {(communicationAndChannel || intelligentAgent || integrationsAndSettings) && (
+          <div className="space-y-6">
+            {communicationAndChannel && (
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-3 pb-2 border-b border-border">
+                  Comunicação e Canal Oficial
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground mb-1">Número oficial do WhatsApp</p>
+                    <p className="text-foreground font-medium">
+                      {communicationAndChannel.numeroWhatsappOficial || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Configuração Meta / Business Manager</p>
+                    <p className="text-foreground font-medium">
+                      {formatSchedule(communicationAndChannel.metaBusinessSchedule || undefined)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Templates de mensagem</p>
+                    <p className="text-foreground whitespace-pre-line">
+                      {communicationAndChannel.templatesMensagem || '-'}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4 mt-4">
+                  {renderDocumentosByType(
+                    'communication_and_channel',
+                    'Anexos (Comunicação e Canal Oficial)'
+                  )}
+                  {renderDocumentosByType(
+                    'numero_whatsapp_oficial',
+                    'Documentos do número oficial (legado)'
+                  )}
+                  {renderDocumentosByType(
+                    'configuracao_meta_business',
+                    'Documentos de agendamento (legado)'
+                  )}
+                  {renderDocumentosByType('templates_mensagem', 'Templates anexados (legado)')}
+                </div>
+              </div>
+            )}
+
+            {intelligentAgent && (
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-3 pb-2 border-b border-border">
+                  Agente Inteligente (IA Conversacional)
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground mb-1">Nome e identidade do agente</p>
+                    <p className="text-foreground font-medium">
+                      {intelligentAgent.nomeIdentidadeAgente || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Base de conhecimento</p>
+                    <p className="text-foreground whitespace-pre-line">
+                      {intelligentAgent.baseConhecimento || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Jornada conversacional</p>
+                    <p className="text-foreground whitespace-pre-line">
+                      {intelligentAgent.jornadaConversacional || '-'}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4 mt-4">
+                  {renderDocumentosByType('intelligent_agent', 'Anexos do agente inteligente')}
+                  {renderDocumentosByType('perfil_visual', 'Perfil visual (legado)')}
+                  {renderDocumentosByType('nome_identidade_agente', 'Identidade do agente (legado)')}
+                  {renderDocumentosByType('base_conhecimento', 'Base de conhecimento (legado)')}
+                  {renderDocumentosByType(
+                    'jornada_conversacional',
+                    'Jornada conversacional (legado)'
+                  )}
+                </div>
+              </div>
+            )}
+
+            {integrationsAndSettings && (
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-3 pb-2 border-b border-border">
+                  Integrações e Parametrizações
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground mb-1">CRM</p>
+                    <p className="text-foreground font-medium">{integrationsAndSettings.crm || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Relatórios e dashboards</p>
+                    <p className="text-foreground whitespace-pre-line">
+                      {integrationsAndSettings.relatoriosDashboards || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Outras integrações</p>
+                    <p className="text-foreground whitespace-pre-line">
+                      {integrationsAndSettings.outrasIntegracoes || '-'}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4 mt-4">
+                  {renderDocumentosByType('integrations_and_settings', 'Anexos de integrações')}
+                  {renderDocumentosByType('crm', 'Documentos do CRM (legado)')}
+                  {renderDocumentosByType(
+                    'relatorios_dashboards',
+                    'Relatórios e dashboards (legado)'
+                  )}
+                  {renderDocumentosByType('outras_integracoes', 'Outras integrações (legado)')}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
             {/* Documentos Enviados */}
             {onboarding.documentos && onboarding.documentos.length > 0 && (
