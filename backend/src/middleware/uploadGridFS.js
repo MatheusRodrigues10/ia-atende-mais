@@ -1,10 +1,10 @@
 const multer = require('multer');
 const { GridFsStorage } = require('multer-gridfs-storage');
-require('dotenv').config();
+
+const connectToDatabase = require('../config/database');
 
 const storage = new GridFsStorage({
-  url: process.env.MONGO_URI,
-  options: { useNewUrlParser: true, useUnifiedTopology: true },
+  db: connectToDatabase().then((connection) => connection.db),
   file: (req, file) => ({
     bucketName: 'uploads',
     filename: `${Date.now()}-${file.originalname}`

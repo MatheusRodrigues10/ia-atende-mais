@@ -1,11 +1,11 @@
 const multer = require('multer');
 const { GridFsStorage } = require('multer-gridfs-storage');
-const mongoose = require('mongoose');
+
+const connectToDatabase = require('../config/database');
 
 // Configuração do GridFS Storage
-const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/onboarding';
 const storage = new GridFsStorage({
-  url: mongoURI,
+  db: connectToDatabase().then((connection) => connection.db),
   file: (req, file) => {
     // Gerar nome único: timestamp + random + extensão original
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
